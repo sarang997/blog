@@ -1,0 +1,91 @@
+---
+title: "What a tensor looks like when NumPy disappears"
+description: "Notes from implementing ML fundamentals in C: flat arrays, explicit memory and what abstractions normally hide."
+publishedAt: "2026-07-11"
+topics:
+  - C
+  - ML systems
+  - First principles
+featured: true
+---
+
+Most machine-learning code begins with an object that already knows a surprising amount. A tensor carries its shape and dtype, supports broadcasting, moves between devices, and participates in automatic differentiation. That is exactly what makes a library useful—but it also makes it easy to forget that the data eventually becomes a contiguous region of memory and a sequence of operations over addresses.
+
+I started **raw-ml-with-c** to spend some time below that abstraction boundary. The rule is simple: no NumPy, no framework, no autograd—just pointers, flat arrays and the operations needed to make them useful.
+
+## The shape is metadata; the tensor is memory
+
+A first representation can be deliberately small:
+
+```c
+typedef struct {
+    float *data;
+    size_t rows;
+    size_t cols;
+} Matrix;
+```
+
+For a two-dimensional row-major matrix, an element at row $i$ and column $j$ lives at a flat offset:
+
+$$
+\operatorname{offset}(i,j) = i \times \text{cols} + j
+$$
+
+The expression is elementary. What changes when writing it in C is that the expression is now *my responsibility*. Bounds, allocation, ownership and cleanup are no longer background details. A shape mismatch cannot be left for a friendly framework error if the surrounding code is not checking shapes in the first place.
+
+That makes even a small tensor API a useful design exercise. Which functions allocate an output? Which mutate an input? Who frees the result when a later step fails? How should a zero-sized dimension behave? None of those questions are unique to ML, but tensor code makes them unusually visible.
+
+## Matrix multiplication becomes three loops again
+
+At the mathematical level, matrix multiplication is concise:
+
+$$
+C_{ij} = \sum_{k=0}^{n-1} A_{ik}B_{kj}
+$$
+
+At the implementation level, it initially becomes the most literal translation possible:
+
+```c
+for (size_t i = 0; i < a.rows; ++i) {
+    for (size_t j = 0; j < b.cols; ++j) {
+        float sum = 0.0f;
+        for (size_t k = 0; k < a.cols; ++k) {
+            sum += a.data[i * a.cols + k]
+                 * b.data[k * b.cols + j];
+        }
+        out.data[i * out.cols + j] = sum;
+    }
+}
+```
+
+This is not presented as an optimised kernel. Its value is that it exposes the access pattern. The loop order determines how memory is traversed. The layout determines which values are adjacent. A mathematically equivalent implementation can behave very differently once caches and vectorisation matter.
+
+The point of beginning with the plain version is to establish something understandable and testable before asking more complicated performance questions.
+
+## Why write it without code generation?
+
+For this project I am deliberately writing the implementation without coding assistants. That is not a general position against those tools; it is a constraint chosen for the learning objective.
+
+When the aim is delivery, abstraction and automation are advantages. When the aim is to build an intuition for pointer arithmetic, ownership and numerical operations, struggling with a missing allocation or an incorrect stride is part of the material. The constraint makes it harder to skip over the exact gap I am trying to examine.
+
+I still use conversation and references to reason about concepts.[^1] The distinction is between getting help understanding a question and outsourcing the implementation that is supposed to create the understanding.
+
+## From C toward CUDA
+
+The same explicitness that makes C instructive also makes it a natural starting point for thinking about CUDA. A GPU kernel introduces a much larger execution model—threads, blocks, memory hierarchies and synchronisation—but the underlying questions remain connected:
+
+- Where does the data live?
+- Which thread is responsible for which element?
+- Is the access pattern friendly to the hardware?
+- Where are intermediate values stored?
+- What assumptions make the result correct?
+
+I am adding CUDA work gradually as the CPU-side foundations become clearer. The purpose is not to claim a fast tensor library. It is to make the path from a mathematical expression to a machine operation less mysterious.
+
+## What the project is really for
+
+The repository will accumulate implementations, but the main output I want is a better mental model. When I return to JAX or PyTorch, I want familiar operations to retain some connection to memory layout, kernels and the cost of moving data.
+
+Frameworks should let us work at a higher level. Understanding one layer beneath them helps make that higher level more meaningful—not less.
+
+[^1]: The project README records the learning constraint and links the work that inspired it, including Andrej Karpathy’s `llm.c` and Vlad Feinberg’s writing.

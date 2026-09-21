@@ -1,0 +1,131 @@
+---
+title: "Training autonomous cars in Unity with ML-Agents"
+description: "How I built a procedural road environment, designed observations and rewards, and trained vehicle agents with PPO."
+publishedAt: "2025-07-18"
+topics:
+  - Reinforcement learning
+  - Unity
+  - ML-Agents
+featured: true
+coverImage: "/figures/training-autonomous-cars-unity-ml-agents/sensor-rays-overview.png"
+coverImageAlt: "Several vehicle agents in Unity surrounded by ray-perception sensor lines."
+---
+
+I built a Unity environment in which vehicle agents learn to stay in lane, avoid collisions and respond to traffic lights. The aim was not to produce a road-ready driving system. It was to understand how an agent’s environment, observations and reward function combine to produce behaviour in a controlled traffic simulation.
+
+The project grew out of living in Delhi and thinking about how traffic builds up around junctions. A useful traffic simulator eventually needs believable interactions between many vehicles, but I started with a smaller question: can I train one agent in a simple road environment, then add complexity without losing sight of why it behaves as it does?
+
+<div class="article-links" aria-label="Project links">
+  <a href="https://github.com/sarang997/RL-Cars" target="_blank" rel="noreferrer"><span>Source code</span><strong>Unity scripts and training configuration</strong><small>GitHub ↗</small></a>
+  <a href="https://www.youtube.com/watch?v=rkrcTk5bTJA" target="_blank" rel="noreferrer"><span>Project video</span><strong>Training process and learned behaviour</strong><small>YouTube ↗</small></a>
+</div>
+
+The environment and agents were built with **Unity**, **C#** and the **Python ML-Agents training package**. I ran the experiments on a MacBook Air M3 without an external GPU.
+
+## Building a scalable road environment
+
+Most of the scene is generated through scripts rather than assembled by hand. This made it possible to change road length, add lanes and compose junctions without rebuilding every scene object.
+
+The [`RoadLaneGenerator.cs`](https://github.com/sarang997/RL-Cars/blob/main/lane/RoadLaneGenerator.cs) script creates a road segment with a mesh, two boundary colliders, an entrance, an exit and intermediate checkpoints. Each lane also has an identifier and direction, which lets the agent distinguish a valid exit from entering the opposing lane.
+
+At junctions, [`JunctionManager.cs`](https://github.com/sarang997/RL-Cars/blob/main/lane/JunctionManager.cs) manages groups of traffic lights. It begins with every group on red, activates one group and then cycles the green state through the available groups. The same logic works with a variable number of light groups.
+
+For the vehicle model and wheel physics I adapted the [Ezereal Car Controller](https://assetstore.unity.com/packages/tools/physics/ezereal-car-controller-302577). I simplified its inputs to the three controls needed by the policy—steering, motor and brake—and kept the revised controller in [`LatestCarController.cs`](https://github.com/sarang997/RL-Cars/blob/main/LatestCarController.cs).
+
+At the start of an episode, [`CarAgent.cs`](https://github.com/sarang997/RL-Cars/blob/main/CarAgent.cs) searches for a spawn position that does not overlap an obstacle, resets the rigid-body velocity and restores the control state. Episodes also end after collisions, invalid lane changes or a timeout.
+
+<figure class="article-figure article-figure--wide">
+  <img src="/figures/training-autonomous-cars-unity-ml-agents/sensor-rays-overview.png" alt="Five Unity vehicle agents and one foreground vehicle with ray-perception lines extending around them." width="1674" height="376" />
+  <figcaption><strong>Figure 1.</strong> Vehicle agents in the Unity scene with their ray-perception sensors visible.</figcaption>
+</figure>
+
+## What the agents observe
+
+The policy needs enough information to make a driving decision without being handed the correct action. I combined ML-Agents ray-perception sensors with a small set of observations collected in C#.
+
+| Sensor | Purpose | Observation values |
+| --- | --- | ---: |
+| 3D ray sensor 1 | Distance to checkpoints and walls | 12 |
+| 3D ray sensor 2 | Nearby vehicles and their distance | 6 |
+| 3D ray sensor 3 | Traffic light ahead and its red/green state | 6 |
+
+The script also records local velocity on the x and z axes, the nearby traffic-light state, and left and right wall distances for lane keeping. Together with the configured ray sensors, the training scene used a 65-value input.
+
+<figure class="article-figure article-figure--portrait">
+  <img src="/figures/training-autonomous-cars-unity-ml-agents/sensor-layout.png" alt="Top-down Unity road scene showing rays that detect cars, side walls and a traffic-light zone." width="1071" height="1159" />
+  <figcaption><strong>Figure 2.</strong> The sensor groups separate nearby-vehicle detection, lane-boundary distance and traffic-signal state.</figcaption>
+</figure>
+
+The policy outputs three continuous actions: a steering change, motor input and brake input. Steering is accumulated from a bounded delta rather than replaced with a completely new angle at every decision. Motor and brake values are smoothed before they are applied to the car controller. These choices were introduced after early agents produced visibly abrupt control changes.
+
+## Reward shaping
+
+The difficult part was not choosing PPO; it was specifying what “good driving” means. A reward that is too sparse leaves the agent with little direction, while a badly balanced dense reward can teach a shortcut that satisfies the score without producing the intended behaviour.
+
+The current agent combines small continuous signals with much larger event-based rewards and penalties:
+
+| Event | Signal | Intended behaviour |
+| --- | ---: | --- |
+| Every step | −0.0005 | Keep making progress |
+| Idle away from a red light | −0.001 | Avoid unnecessary stops |
+| Lane offset beyond the allowed distance | Proportional penalty | Stay near the centre of the lane |
+| Checkpoint reached | +10 | Move along the intended route |
+| Wrong lane sequence | −10 and end episode | Follow lane direction |
+| Wall collision | −50 and end episode | Stay on the road |
+| Collision with another vehicle | −100 and end episode | Avoid traffic |
+| Stop at a red light | +0.1 | Wait for the signal |
+| Stop at a green light | −0.5 | Proceed when allowed |
+| Leave the signal zone on red | −100 | Do not run a red light |
+| Leave the signal zone on green | +50 | Cross a junction correctly |
+
+Earlier versions included a direct large-steering penalty and a reward for surviving close to the episode limit. The current code instead bounds steering changes, makes any extra steering-delta penalty optional, and applies a timeout penalty. That change matters because a survival reward can encourage an agent to avoid useful movement rather than learn the route.
+
+<figure class="article-figure article-figure--wide">
+  <img src="/figures/training-autonomous-cars-unity-ml-agents/intersection-rewards.png" alt="Annotated four-way intersection showing checkpoints, lane directions, traffic-light zones and collision boundaries." width="1024" height="658" />
+  <figcaption><strong>Figure 3.</strong> The main event signals around a four-way intersection. Checkpoints reward progress; lane, wall and signal rules constrain how progress is made.</figcaption>
+</figure>
+
+## PPO policy and value network
+
+I trained the agents with Proximal Policy Optimization (PPO). The checked-in [`training_config.yaml`](https://github.com/sarang997/RL-Cars/blob/main/config/training_config.yaml) uses three fully connected hidden layers with 256 units per layer, ReLU activations and normalised inputs.
+
+| Part | Shape | Role |
+| --- | ---: | --- |
+| Input | 65 values | Ray sensors, velocity, signal and lane information |
+| Hidden layer 1 | 256 units | Fully connected + ReLU |
+| Hidden layer 2 | 256 units | Fully connected + ReLU |
+| Hidden layer 3 | 256 units | Fully connected + ReLU |
+| Policy output | 3 values | Steering delta, motor and brake |
+| Value output | 1 value | Estimate of the current state value |
+
+The PPO configuration uses a batch size of 128, a buffer size of 2,048, a learning rate of 0.0003 and an extrinsic reward discount of 0.99. These are experiment settings rather than evidence that the same values will work for a larger or more realistic traffic system.
+
+## Monitoring training
+
+I used TensorBoard to track cumulative reward per episode. The curve stayed around zero during the early exploration phase, began to rise more clearly after roughly 300,000 steps and reached repeated episode rewards in the 300–400 range after about 500,000 steps.
+
+<figure class="article-figure article-figure--wide">
+  <img src="/figures/training-autonomous-cars-unity-ml-agents/cumulative-reward.png" alt="TensorBoard chart in which cumulative episode reward rises from around zero to mostly 300 to 400 after 500,000 steps." width="1024" height="474" />
+  <figcaption><strong>Figure 4.</strong> Smoothed cumulative reward over 730,000 recorded steps. The run improves substantially, although reward alone does not prove robust driving.</figcaption>
+</figure>
+
+The upward trend showed that the agent was learning to collect the signals I had designed. I still treated the visual behaviour as a separate check: a high return can hide reward exploitation, oscillation or brittle behaviour that only works in the training layout.
+
+## What I learned
+
+The most reliable way to build the environment was as a curriculum, adding one difficulty at a time:
+
+1. **Straight corridor.** One vehicle learned to avoid side walls and collect checkpoints.
+2. **Second vehicle and a turn.** Nearby-vehicle rays were added to the observation space, followed by a turn at the end of the corridor.
+3. **Intersections and lanes.** The final scene introduced directional lanes, traffic signals and multi-vehicle interactions.
+
+This progression made failures easier to locate. If an agent stopped learning immediately after another vehicle was added, I could inspect the new sensor and collision logic rather than debug the whole intersection at once.
+
+The main unresolved issue is control smoothness. Vehicles can still wobble because the policy is asked for decisions frequently and successive steering outputs can change rapidly. I introduced bounded steering deltas and smoothing, but the behaviour still needs systematic evaluation across decision intervals and unseen road layouts.
+
+<figure class="article-figure article-figure--compact">
+  <img src="/figures/training-autonomous-cars-unity-ml-agents/decision-frequency.gif" alt="Animated Unity experiment in which a cube moves toward reward targets using less frequent decisions." width="400" height="256" />
+  <figcaption><strong>Figure 5.</strong> A small cube experiment used to isolate how decision frequency affects sudden changes in control.</figcaption>
+</figure>
+
+This remains a simulation experiment, not an autonomous-driving claim. The encouraging result is narrower: a procedurally assembled road environment, explicit sensor design and staged reward shaping were enough to produce learnable traffic behaviour—and, just as importantly, to expose where that behaviour is still fragile.

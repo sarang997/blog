@@ -1,0 +1,47 @@
+---
+title: "What CNNs give image models for free"
+description: "A reading note on locality, Vision Transformers and how architectural assumptions shape learning from limited data."
+publishedAt: "2026-09-21"
+topics:
+  - Computer vision
+  - Transformers
+  - Statistics
+featured: false
+type: "Reading note"
+---
+
+I have been reading [Attention Is All You Need](https://arxiv.org/abs/1706.03762) alongside [the Vision Transformer paper](https://arxiv.org/abs/2010.11929). I kept coming back to one question: what changes when a Transformer moves from words to images? The idea that clicked for me was inductive bias.
+
+## From sequences to patches
+
+*Attention Is All You Need* proposed a sequence model built around self-attention, without recurrence or convolution. The Vision Transformer makes a simple change to the input: split an image into patches, represent each patch as a token, then pass the sequence through a Transformer encoder. Any patch can interact directly with any other patch.
+
+That is a different starting point from treating an image as a grid with local structure. Patch size and positional information still shape what a ViT can learn, so it is not free of assumptions. It just builds in fewer of the image-specific assumptions that come naturally with convolution.
+
+## What convolution builds in
+
+A CNN filter looks at a local neighbourhood, and the same filter is used at different positions. That gives the model useful biases for images: locality and translation equivariance. Nearby pixels can interact first, and a feature can move across the image while its activation moves with it.
+
+These assumptions make some visual patterns easier to learn from fewer examples. A ViT can connect distant patches from the start, but it has to learn more of the useful visual structure from data. That helps explain why ViTs often need more data, stronger regularisation, or useful pretraining to do well, especially when the dataset is small. The original ViT results used large-scale pretraining before transferring to smaller image benchmarks. So “ViTs need lots of data” feels like a helpful intuition, but not a rule that holds for every training setup.
+
+## The statistics connection
+
+This connects to what I have been learning in statistics and machine learning. A model is not just a set of parameters that fits a dataset. Its assumptions affect which patterns are easy to learn and how well they generalise from finite data.
+
+An inductive bias narrows the possibilities a model considers. When that bias matches the structure in the data, the constraint can help. CNNs bake in assumptions that suit many images; ViTs leave more of that structure to be learned.
+
+## A different kind of assumption in VAEs
+
+VAEs gave me another way to think about this. In [Auto-Encoding Variational Bayes](https://arxiv.org/abs/1312.6114), the encoder produces a distribution over latent codes, and the decoder models how a latent sample could generate the data. The evidence lower bound can be written as a fit term minus a KL penalty:
+
+$$
+\begin{aligned}
+\mathrm{ELBO}(x) &= \mathrm{fit}(x) - \mathrm{KL}(x) \\
+\mathrm{fit}(x) &= \mathbb{E}_{q(z \mid x)}[\log p(x \mid z)] \\
+\mathrm{KL}(x) &= D_{\mathrm{KL}}(q(z \mid x) \,\|\, p(z))
+\end{aligned}
+$$
+
+The first term rewards explaining the data given a latent sample. The second keeps the encoder's distribution close to the prior.
+
+That means the latent space is shaped by the objective, not only by the network layers. Across these papers, I am starting to look for the assumptions a model gets before training and the ones its objective encourages it to learn. I am still working through the details, but that question has made the papers more useful to read.

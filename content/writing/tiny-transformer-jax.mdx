@@ -1,0 +1,105 @@
+---
+title: "Training a tiny transformer to add digits in JAX"
+description: "A compact experiment with one attention head, 952 parameters and a task small enough to inspect end to end."
+publishedAt: "2026-06-22"
+topics:
+  - JAX
+  - Transformers
+  - Experiments
+featured: true
+---
+
+Transformers are usually discussed at a scale that makes their behaviour difficult to hold in one’s head. Large vocabularies, long contexts and millions—or billions—of parameters add practical capability, but they also add many places for an implementation to hide.
+
+I wanted the opposite kind of project: a transformer small enough that I could write the training path myself, make mistakes, and still inspect the whole system. The first experiment in **llm-implementation-jax** therefore learns addition of single-digit numbers.
+
+## Why addition?
+
+Addition is not interesting because a transformer is the best calculator. It is interesting because the task is controlled.
+
+The input and target can be generated exactly. There is no ambiguous labelling and no dataset collection step. When the model fails, the search space is constrained: tokenisation, sequence construction, masking, attention, loss calculation, gradients or optimisation.
+
+For the first version I used:
+
+| Component | Choice |
+| --- | --- |
+| Vocabulary | 13 possible tokens |
+| Embedding size | 8 |
+| Attention | One head |
+| Total parameters | 952 |
+
+These numbers are not a performance claim. They are the boundaries of the experiment—a model small enough to reason about directly.
+
+## Training flow
+
+<figure class="pipeline-figure" aria-labelledby="transformer-flow-caption">
+  <figcaption id="transformer-flow-caption"><strong>Figure 1.</strong> The complete path through the small addition experiment.</figcaption>
+  <div class="pipeline-flow">
+    <div class="pipeline-step"><span>01</span><strong>Examples</strong><small>“3 + 4 = 7”</small></div>
+    <div class="pipeline-arrow" aria-hidden="true">→</div>
+    <div class="pipeline-step"><span>02</span><strong>Tokens</strong><small>13-token vocabulary</small></div>
+    <div class="pipeline-arrow" aria-hidden="true">→</div>
+    <div class="pipeline-step"><span>03</span><strong>Transformer</strong><small>Embedding + attention</small></div>
+    <div class="pipeline-arrow" aria-hidden="true">→</div>
+    <div class="pipeline-step"><span>04</span><strong>Prediction</strong><small>Next-token logits</small></div>
+    <div class="pipeline-arrow" aria-hidden="true">→</div>
+    <div class="pipeline-step"><span>05</span><strong>Update</strong><small>Loss + gradients</small></div>
+  </div>
+  <p class="pipeline-note">The update changes the 952 parameters; the next batch then follows the same path.</p>
+</figure>
+
+## Attention in its compact form
+
+The central operation is still scaled dot-product attention:
+
+$$
+\operatorname{Attention}(Q,K,V) =
+\operatorname{softmax}\left(\frac{QK^T}{\sqrt{d_k}}\right)V
+$$
+
+Writing that expression in JAX feels close to the mathematics, but getting a training system around it requires more than transcribing an equation. Tensor shapes must agree across batches, positions and embeddings. A causal mask has to affect the scores in the intended direction. The logits and target tokens must line up when the loss is flattened.
+
+On a tiny task, printing a shape or inspecting a small attention matrix is still manageable. That made the experiment a useful place to develop debugging habits before increasing complexity.
+
+## JIT changes how the code is read
+
+JAX makes transformations such as `jit` central to the programming model. A simplified training step has this shape:
+
+```python
+@jax.jit
+def train_step(params, batch, optimizer_state):
+    loss, grads = jax.value_and_grad(loss_fn)(params, batch)
+    updates, optimizer_state = optimizer.update(
+        grads, optimizer_state, params
+    )
+    params = optax.apply_updates(params, updates)
+    return params, optimizer_state, loss
+```
+
+JIT compilation can make repeated numerical work efficient, but it also asks the program to be written in a way that JAX can trace. Python control flow, changing shapes and side effects deserve more attention than they would in an ordinary script.
+
+That tension is valuable. It forces a distinction between the static structure of a computation and the values flowing through it. The first call and later calls also have different cost profiles because compilation happens before the compiled function can be reused.[^1]
+
+## Debugging the complete path
+
+The most useful part of building the model was not seeing a loss decrease. It was having to account for the path that makes a decrease possible:
+
+1. Generate the symbolic addition examples.
+2. Map each symbol into the 13-token vocabulary.
+3. Add learned token and position representations.
+4. Produce queries, keys and values for the attention head.
+5. Apply the attention result and feed-forward transformation.
+6. Compare next-token logits with the intended targets.
+7. Differentiate the loss and update all 952 parameters.
+
+When that path is imported from a library as a ready-made model class, it is possible to understand each idea separately but miss how a small alignment error propagates. Implementing the path made those interfaces concrete.
+
+## What I would extend next
+
+The natural next steps are experiments rather than a single march toward size: increase the range of numbers, alter sequence lengths, add attention heads, and compare what changes in optimisation and generalisation.
+
+The important thing is to keep the task interpretable while adding one source of complexity at a time. A tiny transformer will not answer every question about modern language models. It can, however, turn “I know the architecture” into a more demanding statement: “I can account for the data, shapes, objective and update that make this architecture learn.”
+
+That is the standard this project is designed to practice.
+
+[^1]: The repository uses JIT compilation for multiple functions; precise timing comparisons are intentionally outside the current project note because no benchmark methodology has been established.

@@ -9,6 +9,7 @@ export type Project = {
   lesson: string;
   technologies: string[];
   url: string;
+  linkLabel?: string;
 };
 
 export type Experience = {
@@ -19,6 +20,19 @@ export type Experience = {
 };
 
 export const projects: Project[] = [
+  {
+    slug: "msc-dissertation-audio-classification",
+    kicker: "MSc dissertation",
+    title: "CNN architectures for audio classification",
+    year: "2026",
+    shortDescription: "Compared ResNet18 and ResNet50 on bird and environmental audio. Under a five-epoch training schedule, ResNet18 matched or outperformed the larger model while using less computation.",
+    problem: "Test whether a deeper CNN improves spectrogram-based audio classification enough to justify its computational cost.",
+    approach: "Fine-tune both architectures on BirdCLEF 2024 class subsets and ESC-50 using the same preprocessing and training setup, then compare accuracy, F1, inference time and statistical uncertainty.",
+    lesson: "Model capacity alone did not translate into better results under the limited training conditions tested.",
+    technologies: ["PyTorch", "Audio classification", "Statistical evaluation"],
+    url: "/dissertation.pdf",
+    linkLabel: "Read dissertation",
+  },
   {
     slug: "raw-ml-with-c",
     kicker: "First-principles ML",

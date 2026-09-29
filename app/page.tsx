@@ -63,7 +63,7 @@ export default function Home() {
                 </div>
                 <div className="project-meta">
                   <span>{project.technologies.join(" · ")}</span>
-                  <a href={project.url} target="_blank" rel="noreferrer">Repository ↗</a>
+                  <a href={sitePath(project.url)} target="_blank" rel="noreferrer">{project.linkLabel ?? "Repository"} ↗</a>
                 </div>
               </article>
             ))}

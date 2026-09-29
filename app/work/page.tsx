@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { SiteFooter } from "../components/site-footer";
 import { SiteHeader } from "../components/site-header";
 import { projects } from "../../lib/site-data";
-import { absoluteUrl } from "../../lib/site";
+import { absoluteUrl, sitePath } from "../../lib/site";
 
 export const metadata: Metadata = {
   title: "Selected Work",
@@ -30,7 +30,7 @@ export default function WorkPage() {
               </div>
               <div className="work-index-meta">
                 <p>{project.technologies.join(" · ")}</p>
-                <a href={project.url} target="_blank" rel="noreferrer">Repository ↗</a>
+                <a href={sitePath(project.url)} target="_blank" rel="noreferrer">{project.linkLabel ?? "Repository"} ↗</a>
               </div>
             </article>
           ))}

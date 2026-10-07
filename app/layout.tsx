@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 
 const siteTitle = "Sarang Bhatnagar | Data Engineering, Statistics and ML";
 const siteDescription =
-  "Sarang Bhatnagar works across end-to-end data: building production-grade data systems and training predictive and deep-learning models, with an MSc in Statistics & Data Science from the University of Bath.";
+  "Data engineer with experience in pipelines, backend services and distributed systems. MSc in Statistics and Data Science from the University of Bath, with research in audio classification.";
 export const metadata: Metadata = {
   metadataBase: new URL(`${siteUrl}/`),
   title: {

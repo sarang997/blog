@@ -11,9 +11,9 @@ async function output(path) {
 
 test("exports the editorial home page at the GitHub Pages base path", async () => {
   const html = await output("index.html");
-  assert.match(html, /End-to-end data guy/);
-  assert.match(html, /deep understanding of statistics/);
-  assert.match(html, /ML fundamentals, without the framework/);
+  assert.match(html, /I build data pipelines, backend services and distributed systems/);
+  assert.match(html, /MSc in Statistics and Data Science/);
+  assert.match(html, /ML operations in C/);
   assert.match(html, /Sarang Bhatnagar/);
   assert.match(html, /href="\/blog\/writing\//);
   assert.match(html, /href="\/blog\/work\//);

@@ -7,7 +7,7 @@ import { absoluteUrl } from "../../lib/site";
 
 export const metadata: Metadata = {
   title: "Writing",
-  description: "Field notes on data systems, statistics, JAX, C and machine learning from first principles.",
+  description: "Notes on statistics, machine learning and data systems by Sarang Bhatnagar.",
   alternates: { canonical: absoluteUrl("/writing/") },
 };
 

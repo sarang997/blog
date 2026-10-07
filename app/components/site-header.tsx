@@ -10,9 +10,9 @@ export function SiteHeader() {
         </a>
         <div className="header-actions">
           <nav aria-label="Primary navigation">
-            <a href={sitePath("/writing/")}>Writing</a>
             <a href={sitePath("/work/")}>Work</a>
-            <a href={sitePath("/#experience")}>Experience</a>
+            <a href={sitePath("/writing/")}>Writing</a>
+            <a href={sitePath("/#about")}>About</a>
           </nav>
           <ThemeToggle />
         </div>

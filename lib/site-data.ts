@@ -1,106 +1,91 @@
 export type Project = {
   slug: string;
-  kicker: string;
   title: string;
   year: string;
   shortDescription: string;
-  problem: string;
-  approach: string;
-  lesson: string;
   technologies: string[];
   url: string;
-  linkLabel?: string;
 };
 
-export type Experience = {
-  role: string;
-  company: string;
-  dates: string;
+export type EngineeringWork = {
+  slug: string;
+  title: string;
   summary: string;
+  detail: string;
+  technologies: string[];
 };
+
+export const engineeringWork: EngineeringWork[] = [
+  {
+    slug: "distributed-logging",
+    title: "Logging across distributed servers",
+    summary: "Built an ELK logging and alerting platform for hundreds of servers, supporting ingestion of up to 140 MB/s with 30-day retention.",
+    detail: "I worked on Elasticsearch indexing and shard layout, reducing the shard count by about 60% and improving cluster stability. The platform also gave us a way to monitor the health of our scraper services in Kibana.",
+    technologies: ["Elasticsearch", "Logstash", "Kibana"],
+  },
+  {
+    slug: "data-acquisition",
+    title: "A service for collecting research data",
+    summary: "Built APIs and distributed scraper services to collect academic research data from more than 900 sources, with shared parsing, authentication and ingestion layers.",
+    detail: "New scrapers could be added through JSON configuration. I connected the service to our logging platform for monitoring, containerised it, and deployed it on Google Cloud with CI/CD.",
+    technologies: ["APIs", "Web scraping", "Docker", "Google Cloud"],
+  },
+  {
+    slug: "metadata-pipelines",
+    title: "Metadata ingestion and reporting",
+    summary: "Designed a pipeline to ingest 1.6 TB of JSON metadata into BigQuery and keep it updated, supporting search queries with response times below 200 ms.",
+    detail: "I also built pipelines from SQL, MongoDB, Redis and external APIs into Elasticsearch. Automating report delivery brought turnaround down from 7–10 days to one day.",
+    technologies: ["BigQuery", "SQL", "MongoDB", "Elasticsearch"],
+  },
+];
 
 export const projects: Project[] = [
   {
-    slug: "msc-dissertation-audio-classification",
-    kicker: "MSc dissertation",
-    title: "CNN architectures for audio classification",
-    year: "2026",
-    shortDescription: "Compared ResNet18 and ResNet50 on bird and environmental audio. Under a five-epoch training schedule, ResNet18 matched or outperformed the larger model while using less computation.",
-    problem: "Test whether a deeper CNN improves spectrogram-based audio classification enough to justify its computational cost.",
-    approach: "Fine-tune both architectures on BirdCLEF 2024 class subsets and ESC-50 using the same preprocessing and training setup, then compare accuracy, F1, inference time and statistical uncertainty.",
-    lesson: "Model capacity alone did not translate into better results under the limited training conditions tested.",
-    technologies: ["PyTorch", "Audio classification", "Statistical evaluation"],
-    url: "/dissertation.pdf",
-    linkLabel: "Read dissertation",
+    slug: "f1-telemetry-pipeline",
+    title: "F1 telemetry and streaming analytics",
+    year: "2025",
+    shortDescription: "A personal project with separate services for telemetry simulation, live visualisation, storage and lap analytics. Kafka carries the events, InfluxDB stores them, and Spark produces lap summaries.",
+    technologies: ["Python", "Kafka", "Spark", "InfluxDB"],
+    url: "https://github.com/sarang997/f1-telemetry-pipeline",
   },
   {
     slug: "raw-ml-with-c",
-    kicker: "First-principles ML",
-    title: "ML fundamentals, without the framework",
+    title: "ML operations in C",
     year: "2026",
-    shortDescription: "Implementing tensors and core ML operations in C to understand the memory and computation hidden beneath high-level libraries.",
-    problem: "Modern ML libraries make experimentation fast, but they can hide the data layout, allocation and numerical operations that make a model run.",
-    approach: "Build the fundamentals with pointers and flat arrays, deliberately writing the implementation by hand. The project is also becoming a place to explore CUDA as the low-level work develops.",
-    lesson: "Removing abstractions turns familiar tensor expressions back into concrete choices about memory, indexing and control flow.",
-    technologies: ["C", "Memory layout", "CUDA (learning)"],
+    shortDescription: "Implementing matrix multiplication, gradients, layer normalisation and softmax in C to understand the calculations and memory management underneath an ML framework.",
+    technologies: ["C", "Linear algebra", "Memory management"],
     url: "https://github.com/sarang997/raw-ml-with-c",
   },
   {
     slug: "llm-implementation-jax",
-    kicker: "Transformers",
-    title: "A tiny transformer that learns addition",
+    title: "A small transformer in JAX",
     year: "2026",
-    shortDescription: "A compact, hand-built transformer in JAX trained on digit addition, using a 13-token vocabulary and JIT-compiled training functions.",
-    problem: "Understand attention and training dynamics through a task small enough that the architecture, data and failure modes can all be inspected.",
-    approach: "Start with single-digit addition using one attention head, an embedding size of eight and 952 parameters, then debug the complete training loop directly in JAX.",
-    lesson: "A deliberately tiny problem creates room to reason about every moving part rather than treating the training stack as a black box.",
-    technologies: ["JAX", "Transformers", "JIT"],
+    shortDescription: "A transformer for digit addition, including causal attention, training and inference. Its 952 parameters make the full implementation small enough to inspect and debug.",
+    technologies: ["JAX", "Attention", "Automatic differentiation"],
     url: "https://github.com/sarang997/llm-implementation-jax",
   },
   {
     slug: "wiki-snowflake-pipeline",
-    kicker: "Analytics engineering",
-    title: "Wikipedia pageviews to tested marts",
+    title: "Wikipedia pageviews in Snowflake",
     year: "2026",
-    shortDescription: "A daily pipeline that ingests popular Wikipedia articles, loads Snowflake and produces tested analytics models with dbt.",
-    problem: "Turn a public daily feed into repeatable, analytics-ready data without manual intervention.",
-    approach: "Separate ingestion, transformation and load steps; orchestrate them through GitHub Actions or Airflow; provision Snowflake infrastructure with Terraform; and validate the resulting marts with dbt tests.",
-    lesson: "A useful pipeline is more than movement: its scheduling, infrastructure, models and tests need to form one understandable system.",
-    technologies: ["Snowflake", "dbt", "Airflow", "Terraform"],
+    shortDescription: "A daily Python pipeline with dbt models and data checks, Terraform infrastructure and GitHub Actions. A separate version uses Airflow for ingestion.",
+    technologies: ["Snowflake", "dbt", "Terraform", "Airflow"],
     url: "https://github.com/sarang997/wiki-snowflake-pipeline",
-  },
-  {
-    slug: "f1-telemetry-pipeline",
-    kicker: "Streaming systems",
-    title: "A telemetry pipeline built like a pit wall",
-    year: "2025",
-    shortDescription: "A distributed F1 simulation producing telemetry at 100 Hz for independent visualization, storage and streaming analytics consumers.",
-    problem: "Model the shape of a real-time telemetry system in which live displays, historical storage and analytics evolve independently.",
-    approach: "Use a physics simulator as the producer, Kafka as the event backbone, InfluxDB for history and Spark Structured Streaming for windowed lap analytics.",
-    lesson: "Decoupled consumers let the real-time path stay focused while storage and aggregation can scale on their own terms.",
-    technologies: ["Kafka", "Spark", "InfluxDB", "Python"],
-    url: "https://github.com/sarang997/f1-telemetry-pipeline",
   },
 ];
 
-export const experience: Experience[] = [
+export const earlierWork = [
   {
-    role: "Data Engineer",
-    company: "Knimbus",
-    dates: "2022 — present",
-    summary: "Built automated reporting systems that reduced manual work by 85%, plus scraping and ETL pipelines spanning more than 20 sources and improving data accuracy by 40%.",
-  },
-  {
-    role: "Data Engineer",
     company: "Fliplearn",
-    dates: "2022",
-    summary: "Developed data engines for platform-usage reporting and a serverless AWS architecture that reduced infrastructure costs by 40%.",
+    role: "Data Engineer",
+    dates: "February to December 2022",
+    summary: "Built an event-driven reporting pipeline with AWS SQS, Lambda and S3, combining data from databases and APIs for daily, weekly and monthly reports.",
   },
   {
-    role: "Engineering Intern",
     company: "BETIC, IIT Bombay",
-    dates: "2018",
-    summary: "Contributed to low-cost prosthetic-leg development and worked directly with patients on customisation.",
+    role: "Research Intern",
+    dates: "January to June 2018",
+    summary: "Analysed time-series data from body-mounted motion sensors to study gait asymmetry in polio patients.",
   },
 ];
 
